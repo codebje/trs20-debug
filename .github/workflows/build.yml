@@ -1,0 +1,33 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: cache build tools
+      uses: actions/cache@v1
+      with:
+        path: "/opt/local"
+        key: ${{ runner.os }}-build-tools
+    - name: install build tools
+      env:
+        CACHE_HIT: ${{steps.cache-build-tools.outputs.cache-hit}}
+      run: |
+        if [[ "$CACHE_HIT" == 'false' ]]; then
+          apt update
+          apt -y install curl
+          cd /tmp
+          curl -Lo gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2?revision=108bd959-44bd-4619-9c19-26187abf5225&la=en&hash=E788CE92E5DFD64B2A8C246BBA91A249CB8E2D2D'
+          mkdir -p /opt/local
+          cd /opt/local && tar xf /tmp/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2
+        fi
+    - name: Do the build itself
+      env:
+        ABI: /opt/local/gcc-arm-none-eabi-9-2019-q4-major/bin/arm-none-eabi-
+      run: |
+        make
