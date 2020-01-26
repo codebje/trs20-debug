@@ -20,7 +20,8 @@ jobs:
       run: |
         sudo apt update
         sudo apt -y install make
-        if [[ "$CACHE_HIT" == 'false' ]]; then
+        echo $CACHE_HIT
+        if [[ "$CACHE_HIT" != 'true' ]]; then
           sudo apt -y install curl
           cd /tmp
           curl -Lo gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2?revision=108bd959-44bd-4619-9c19-26187abf5225&la=en&hash=E788CE92E5DFD64B2A8C246BBA91A249CB8E2D2D'
