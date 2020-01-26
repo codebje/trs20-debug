@@ -1,8 +1,7 @@
 	.thumb
 	.syntax		unified
 	.cpu		cortex-m4
-
-	.equ		GPIOA, 0x40020000
+.equ		GPIOA, 0x40020000
 	.equ		GPIOB, 0x40020400
 	.equ		GPIOC, 0x40020800
 	.equ		GPIOD, 0x40020C00
@@ -42,6 +41,7 @@
 	.equ		RCC_DCKCFGR, 0x8C
 
 	.equ		RCC_CR_HSEON, 1 << 16
+	.equ		RCC_CR_HSERDY, 1 << 17
 
 	.equ		RCC_APB1ENR_PWREN, 1 << 28
 
@@ -82,8 +82,10 @@ _start:
 	ldr		r0, [r6, RCC_CR]
 
 	// Wait for HSE to be ready
+hsewait:
+	ldr		r0, [r6, RCC_CR]
+	and		r0, r0, RCC_CR_HSERDY
 
-	//.thumb_func
 loop:
 	add		r0, r0, #1
 	b		loop
