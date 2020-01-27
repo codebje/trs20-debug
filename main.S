@@ -95,8 +95,3 @@ loop:
 	.type _error, %function
 _error:
 	b		_error+1
-
-.section	.data.rom
-
-rom:
-	.long	0xdeadbeef

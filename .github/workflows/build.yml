@@ -22,14 +22,17 @@ jobs:
         sudo apt -y install make
         echo $CACHE_HIT
         if [[ "$CACHE_HIT" != 'true' ]]; then
-          sudo apt -y install curl
+          sudo apt -y install curl unzip
           cd /tmp
           curl -Lo gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2?revision=108bd959-44bd-4619-9c19-26187abf5225&la=en&hash=E788CE92E5DFD64B2A8C246BBA91A249CB8E2D2D'
-          sudo mkdir -p /opt/local
+          curl -LO http://k1.spdns.de/Develop/Projects/zasm/Distributions/zasm-4.2.4-Linux64.zip
+          sudo mkdir -p /opt/local/bin
           cd /opt/local && sudo tar xf /tmp/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2
+          cd /opt/local/bin && sudo unzip -j /tmp/zasm-4.2.4-Linux64.zip zasm-4.2.4-Linux64/zasm
         fi
     - name: Do the build itself
       env:
         ABI: /opt/local/gcc-arm-none-eabi-9-2019-q4-major/bin/arm-none-eabi-
+        ZASM: /opt/local/bin/zasm
       run: |
         make
