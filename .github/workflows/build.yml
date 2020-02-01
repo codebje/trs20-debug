@@ -10,13 +10,14 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: cache build tools
+      id: cache-build-tools
       uses: actions/cache@v1
       with:
         path: "/opt/local"
         key: ${{ runner.os }}-build-tools
     - name: install build tools
       env:
-        CACHE_HIT: ${{steps.cache-build-tools.outputs.cache-hit}}
+        CACHE_HIT: ${{ steps.cache-build-tools.outputs.cache-hit }}
       run: |
         sudo apt update
         sudo apt -y install make
