@@ -21,13 +21,9 @@ _rom_base = 0x08038000;
 
 SECTIONS {
 
-    /* reset/interrupt vectors first */
-    .vectors : {
-        KEEP(*(.vectors))       /* required to prevent ld eliminating this section */
-    } >FLASH =0xFF
-
     /* text section */
     .text : {
+        KEEP(*(.vectors))       /* required to prevent ld eliminating this section */
         . = ALIGN(4);
         *(.text)
         *(.text*)

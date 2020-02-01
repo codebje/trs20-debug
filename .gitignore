@@ -3,3 +3,4 @@ main.elf
 trs20.rom
 trs20.lst
 *.o
+.dep/
