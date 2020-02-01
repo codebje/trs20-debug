@@ -144,7 +144,10 @@
 	.equ		TIMx_CCER, 0x20
 	.equ		TIMx_PSC, 0x28
 	.equ		TIMx_ARR, 0x2C
+	.equ		TIMx_CCR1, 0x34
+	.equ		TIMx_CCR2, 0x38
 	.equ		TIMx_CCR3, 0x3C
+	.equ		TIMx_CCR4, 0x40
 
 	// General timer values
 	.equ		TIMx_CR1_CEN, 1 << 0

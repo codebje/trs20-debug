@@ -7,7 +7,6 @@
 .section	.text.main
 
 	.global		main
-	//.thumb_func
 	.type main, %function
 main:
 	// enable GPIOA, GPIOB, GPIOC clocks
@@ -27,46 +26,33 @@ main:
 	str		r0, [r6, RCC_APB2ENR]
 	ldr		r0, [r6, RCC_APB2ENR]
 
-	// Configure PA2 for AF01, TIM2_CH3.
+	// Configure PA1 for AF01, TIM2_CH2, and PA3 for AF03, TIM9_CH2
 	ldr		r6, =GPIOA
 
-	// PA2 resets as no pull-up/pull-down, output mode push-pull.
-	// Need to set output speed (vhigh for fast edges), AF01 for TIM2_CH3, and mode AF.
+	// PA1/3 reset as no pull-up/pull-down, output mode push-pull.
+	// Need to set output speed, select AF, and set AF mode
 
-	ldr		r0, = GPIOx_OSPEEDR_VHIGH << GPIOx_OSPEEDR2
-	str		r0, [r6, GPIOx_OSPEEDR]		// set PA2 to very high speed
+	ldr		r0, = GPIOx_OSPEEDR_VHIGH << GPIOx_OSPEEDR1 | GPIOx_OSPEEDR_VHIGH << GPIOx_OSPEEDR3
+	str		r0, [r6, GPIOx_OSPEEDR]		// set PA1/3 to very high speed
 
-	ldr		r0, = 1 << GPIOx_AFRL_AFRL2
-	str		r0, [r6, GPIOx_AFRL]		// set AF01 for PA2
+	ldr		r0, = 1 << GPIOx_AFRL_AFRL1 | 3 << GPIOx_AFRL_AFRL3
+	str		r0, [r6, GPIOx_AFRL]		// set AF01 for PA1, AF03 for PA3
 
 	ldr		r0, [r6, GPIOx_MODER]
-	orr		r0, r0, GPIOx_MODER_MODE_ALT << 4
-	str		r0, [r6, GPIOx_MODER]		// set PA2 to mode AF, PA0 to OUTPUT
+	orr		r0, r0, GPIOx_MODER_MODE_ALT << 2 | GPIOx_MODER_MODE_ALT << 6
+	str		r0, [r6, GPIOx_MODER]		// set AF for PA1, PA3
 
 	// Configure TIM2 to emit a 1MHz signal
-	ldr		r6, =TIM2
+	ldr		r0, =TIM2
+	ldr		r1, =6
+	ldr		r2, =5
+	bl		tim_ch2
 
-	ldr		r0, =6
-	str		r0, [r6, TIMx_PSC]
-
-	ldr		r0, =5
-	str		r0, [r6, TIMx_ARR]
-
-	// Enable PWM Mode 1 with a 50% duty cycle
-	ldr		r0, =TIMx_CCMR_OCxM_PWM_1 << TIMx_CCMR2_OC3M_OFFSET
-	str		r0, [r6, TIMx_CCMR2]
-	ldr		r0, =3				// 50% duty cycle
-	str		r0, [r6, TIMx_CCR3]
-	ldr		r0, =TIMx_CCER_CC3E		// enable channel 3
-	str		r0, [r6, TIMx_CCER]
-
-	// Reload all registers from preloads
-	ldr		r0, =TIMx_EGR_UG
-	str		r0, [r6, TIMx_EGR]
-
-	// Enable the timer
-	ldr		r0, =TIMx_CR1_CEN
-	str		r0, [r6, TIMx_CR1]
+	// Configure TIM9 to also emit a 1MHz signal
+	ldr		r0, =TIM9
+	ldr		r1, =6
+	ldr		r2, =5
+	bl		tim_ch2
 
 	// configure PC13 as output, push-pull, no pup/pd
 	ldr		r6, =GPIOC
@@ -78,3 +64,38 @@ loop:	// loop forever
 	b		loop
 
 	.size 		main, . - main
+
+// Configure a timer to emit a square wave. This is fixed to channel 2 and
+// expects the timer to be in its reset condition.
+//
+// r0: the timer's base address
+// r1: the prescaler
+// r2: the auto-reload counter
+	.global		tim_ch2
+	.type tim_ch2, %function
+tim_ch2:
+	str		r1, [r0, TIMx_PSC]
+	str		r2, [r0, TIMx_ARR]
+
+	// Half of the reload time needs to go in CCR2 for 50% duty cycle
+	add		r2, r2, 1
+	lsr		r2, 1
+	str		r2, [r0, TIMx_CCR2]
+
+	// Enable PWM Mode 1 with a 50% duty cycle
+	ldr		r1, =TIMx_CCMR_OCxM_PWM_1 << TIMx_CCMR1_OC2M_OFFSET
+	str		r1, [r0, TIMx_CCMR1]
+	ldr		r1, =TIMx_CCER_CC2E		// enable channel 2
+	str		r1, [r0, TIMx_CCER]
+
+	// Reload all registers from preloads
+	ldr		r1, =TIMx_EGR_UG
+	str		r1, [r0, TIMx_EGR]
+
+	// Enable the timer
+	ldr		r1, =TIMx_CR1_CEN
+	str		r1, [r0, TIMx_CR1]
+
+	bx		lr
+
+	.size		tim_ch2, . - tim_ch2

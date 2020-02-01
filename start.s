@@ -57,27 +57,27 @@ hsewait:// Wait for HSE to be ready
 
 	// Configure the PLL
 	mov32		r0, PLL_CONFIG
-	//str		r0, [r6, RCC_PLLCFGR]
+	str		r0, [r6, RCC_PLLCFGR]
 
 	// Enable the PLL
 	ldr		r0, [r6, RCC_CR]
 	orr		r0, r0, RCC_CR_PLLON
-	//str		r0, [r6, RCC_CR]
+	str		r0, [r6, RCC_CR]
 
 pllwait:// Wait for PLL to be ready
 	ldr		r0, [r6, RCC_CR]
 	ands		r0, r0, RCC_CR_PLLRDY
-	//bne		pllwait
+	bne		pllwait
 
 	// Select the PLL as the system clock source
 	movw		r0, CLOCK_CONFIG | RCC_CFGR_SW_PLL
-	//str		r0, [r6, RCC_CFGR]
+	str		r0, [r6, RCC_CFGR]
 
 clkwait:// Wait for SYSCLK to be ready
 	ldr		r0, [r6, RCC_CFGR]
 	and		r0, r0, RCC_CFGR_SWS_MASK
 	cmp		r0, RCC_CFGR_SWS_PLL
-	//bne		clkwait
+	bne		clkwait
 
 	b		main
 
