@@ -16,51 +16,43 @@ main:
 	str		r0, [r6, RCC_AHB1ENR]
 	ldr		r0, [r6, RCC_AHB1ENR]		// read register back 
 
-	// Enable TIM2, TIM9
-	ldr		r0, [r6, RCC_APB1ENR]
-	orr		r0, r0, 1
-	str		r0, [r6, RCC_APB1ENR]
-	ldr		r0, [r6, RCC_APB1ENR]
-	ldr		r0, [r6, RCC_APB2ENR]
-	orr		r0, r0, 1 << 16
-	str		r0, [r6, RCC_APB2ENR]
-	ldr		r0, [r6, RCC_APB2ENR]
+	// switch PA0:7, 9 to very high speed
+	ldr		r5, =GPIOA
+	ldr		r0, [r5, GPIOx_OSPEEDR]
+	ldr		r1, =0b11001111111111111111
+	orr		r0, r0, r1
+	str		r0, [r5, GPIOx_OSPEEDR]
 
-	// Configure PA1 for AF01, TIM2_CH2, and PA3 for AF03, TIM9_CH2
-	ldr		r6, =GPIOA
-
-	// PA1/3 reset as no pull-up/pull-down, output mode push-pull.
-	// Need to set output speed, select AF, and set AF mode
-
-	ldr		r0, = GPIOx_OSPEEDR_VHIGH << GPIOx_OSPEEDR1 | GPIOx_OSPEEDR_VHIGH << GPIOx_OSPEEDR3
-	str		r0, [r6, GPIOx_OSPEEDR]		// set PA1/3 to very high speed
-
-	ldr		r0, = 1 << GPIOx_AFRL_AFRL1 | 3 << GPIOx_AFRL_AFRL3
-	str		r0, [r6, GPIOx_AFRL]		// set AF01 for PA1, AF03 for PA3
-
-	ldr		r0, [r6, GPIOx_MODER]
-	orr		r0, r0, GPIOx_MODER_MODE_ALT << 2 | GPIOx_MODER_MODE_ALT << 6
-	str		r0, [r6, GPIOx_MODER]		// set AF for PA1, PA3
-
-	// Configure TIM2 to emit a 1MHz signal
-	ldr		r0, =TIM2
-	ldr		r1, =6
-	ldr		r2, =5
-	bl		tim_ch2
-
-	// Configure TIM9 to also emit a 1MHz signal
-	ldr		r0, =TIM9
-	ldr		r1, =6
-	ldr		r2, =5
-	bl		tim_ch2
+	// set PA9 mode output, push-pull, no pull-up/down
+	ldr		r0, [r5, GPIOx_MODER]
+	orr		r0, r0, GPIOx_MODER_MODE_OUTPUT << 18
+	str		r0, [r5, GPIOx_MODER]
 
 	// configure PC13 as output, push-pull, no pup/pd
 	ldr		r6, =GPIOC
 	ldr		r0, =GPIOx_MODER_MODE_OUTPUT << 26
 	str		r0, [r6, GPIOx_MODER]
 
-loop:	// loop forever
-	add		r0, r0, #1
+	ldr		r6, =GPIOB
+
+loop:	// wait for MREQ and RD to be set
+	ldr		r0, [r6, GPIOx_IDR]
+	ands		r1, r0, 0b1010000000000000
+	beq		loop
+
+	// set PA9 to indicate memory read is active
+	ldr		r0, =1 << 9
+	str		r0, [r5, GPIOx_BSRR]
+
+reading:// wait for MREQ and RD to go inactive
+	ldr		r0, [r6, GPIOx_IDR]
+	ands		r1, r0, 0b1010000000000000
+	bne		reading
+
+	// reset PA9
+	ldr		r0, =1 << 25
+	str		r0, [r5, GPIOx_BSRR]
+
 	b		loop
 
 	.size 		main, . - main

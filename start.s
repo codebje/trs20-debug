@@ -43,7 +43,7 @@ _start:
 	// there is no harm in doing it before configuring the PLL.
 	ldr		r5, =FLASH
 	mov		r0, FLASH_CONFIG
-	//strh		r0, [r5, FLASH_ACR]
+	strh		r0, [r5, FLASH_ACR]
 
 	// Enable HSE
 	ldr		r0, [r6, RCC_CR]
