@@ -35,12 +35,26 @@ main:
 
 	ldr		r6, =GPIOB
 
-loop:	// wait for MREQ and RD to be set
+loop:	// read from PORT B in r6
 	ldr		r0, [r6, GPIOx_IDR]
-	ands		r1, r0, 0b1010000000000000
-	beq		loop
 
-	// set PA9 to indicate memory read is active
+	// PB12: MREQ  PB13: IORQ  PB14: WR  PB15: RD
+
+	// check for MREQ and RD
+	tst		r0, 0b1001000000000000
+	beq		read
+
+	// check for MREQ and WR
+	tst		r0, 0b0101000000000000
+	bne		loop
+
+write:	b		memaddr
+
+	b		ready
+
+read:
+
+ready:	// set PA9 to indicate memory read is active
 	ldr		r0, =1 << 9
 	str		r0, [r5, GPIOx_BSRR]
 
@@ -56,6 +70,42 @@ reading:// wait for MREQ and RD to go inactive
 	b		loop
 
 	.size 		main, . - main
+
+// Convert the contents of a PORTB read into a memory address
+//
+// Arguments
+// 	r0: the raw value of PORTB
+// Results
+//	r0: the memory address in RAM or ROM
+//	r1: set to 1 if the address is in ROM, else 0
+
+	.extern		trs20_rom
+
+	.equ		RAM_BASE, 0x20000000
+	.equ		ROM_BASE, trs20_rom
+
+	.type		memaddr, %function
+memaddr:
+	// the memory address is in PB0:1, 5:10
+	movw		r2, 0b11111100
+	and		r1, r2, r0, lsr 3	// put top 6 bits into r1
+
+	and		r0, r0, 0b11		// assemble final address into r0
+	orr		r0, r1, r0
+
+	// check if RAM or ROM
+	movw		r1, 1
+	eors		r1, r1, r0, lsr 7
+
+	ite		eq
+	ldreq		r2, =RAM_BASE
+	ldrne		r2, =ROM_BASE
+
+	add		r0, r0, r2
+
+	bx		lr
+
+	.size		memaddr, . - memaddr
 
 // Configure a timer to emit a square wave. This is fixed to channel 2 and
 // expects the timer to be in its reset condition.

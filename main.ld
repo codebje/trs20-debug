@@ -32,6 +32,7 @@ SECTIONS {
     /* fixed data and TRS-20 ROM */
     .rodata : {
         . = ALIGN(32768);
+        trs20_rom = .;
         KEEP(*(.rodata))
     } >FLASH =0xFF
 

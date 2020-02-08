@@ -1,5 +1,6 @@
 ABI ?= /opt/local/gcc-arm-none-eabi-9-2019-q4-major/bin/arm-none-eabi-
 ZASM ?= zasm
+RUSTMTEST ?= /opt/local/bin/rustmtest
 
 BUILD = ./build
 DEPDIR = ./.dep
@@ -7,9 +8,6 @@ DEPDIR = ./.dep
 SOURCES = start.s main.s vectors.s
 OBJECTS = $(SOURCES:%.s=$(BUILD)/%.o) $(BUILD)/trs20.o
 DEPENDS = $(SOURCES:%.s=$(DEPDIR)/%.d)
-
-# For qemu. Nothing actually works yet.
-MACHINE = cubieboard
 
 all: $(BUILD)/main.bin
 
@@ -42,10 +40,9 @@ clean:
 flash:	$(BUILD)/main.bin
 	dfu-util -a 0 -s 0x08000000:leave -D $(BUILD)/main.bin
 
-qemu:	$(BUILD)/main.elf
-	# todo: need better machine option
-	qemu-system-arm -cpu cortex-m4 -nographic -serial null -kernel main.elf -machine $(MACHINE) -S
-
+.PHONY: test
+test:	| $(BUILD)/main.elf
+	@$(RUSTMTEST) $(BUILD)/main.elf test/*.test
 
 $(DEPDIR):
 	@mkdir -p $(DEPDIR)
