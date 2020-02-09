@@ -4,72 +4,129 @@
 
 	.include	"include/stm32f401.s"
 
+	// PB12: MREQ  PB13: IORQ  PB14: WR  PB15: RD
+	.equ		MREQ,	0b0001000000000000
+	.equ		IORQ,	0b0010000000000000
+	.equ		WR,	0b0100000000000000
+	.equ		RD,	0b1000000000000000
+
+	// GPIOA_MODER half-word values for input/output modes
+	.equ		MODER_INPUT, 0b0000000000000000
+	.equ		MODER_OUTPUT, 0b0101010101010101
+
 .section	.text.main
 
 	.global		main
 	.type main, %function
-main:
-	// enable GPIOA, GPIOB, GPIOC clocks
-	ldr		r6, =RCC
-	ldr		r0, [r6, RCC_AHB1ENR]
-	orr		r0, r0, RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN
-	str		r0, [r6, RCC_AHB1ENR]
-	ldr		r0, [r6, RCC_AHB1ENR]		// read register back 
+main:	bl		hwinit
 
-	// switch PA0:7, 9 to very high speed
 	ldr		r5, =GPIOA
-	ldr		r0, [r5, GPIOx_OSPEEDR]
-	ldr		r1, =0b11001111111111111111
-	orr		r0, r0, r1
-	str		r0, [r5, GPIOx_OSPEEDR]
-
-	// set PA9 mode output, push-pull, no pull-up/down
-	ldr		r0, [r5, GPIOx_MODER]
-	orr		r0, r0, GPIOx_MODER_MODE_OUTPUT << 18
-	str		r0, [r5, GPIOx_MODER]
-
-	// configure PC13 as output, push-pull, no pup/pd
-	ldr		r6, =GPIOC
-	ldr		r0, =GPIOx_MODER_MODE_OUTPUT << 26
-	str		r0, [r6, GPIOx_MODER]
-
 	ldr		r6, =GPIOB
 
-loop:	// read from PORT B in r6
+idle:	// read from PORT B in r6
 	ldr		r0, [r6, GPIOx_IDR]
 
-	// PB12: MREQ  PB13: IORQ  PB14: WR  PB15: RD
+	// mask out and negate active-low signals
+	mvn		r4, r0
+	ands		r4, r4, MREQ | IORQ | RD | WR
 
-	// check for MREQ and RD
-	tst		r0, 0b1001000000000000
-	beq		read
+	// if none are set, go back and try again
+	beq		idle
 
-	// check for MREQ and WR
-	tst		r0, 0b0101000000000000
-	bne		loop
+	// IORQ is NYI
+	tst		r4, IORQ
+	bne		idle
 
-write:	b		memaddr
+	// translate memory address
+	bl		memaddr
+
+	cmp		r4, MREQ | RD
+	beq		memread
+
+	cmp		r4, MREQ | WR
+	beq		memwrite
+
+	// insufficient signals asserted, go back and wait more
+	b		idle
+
+memread:
+	// read a byte and write it to PA0:7
+	ldrb		r1, [r0]
+	strb		r1, [r5, GPIOx_ODR]
+
+	// set PA0:7 to OUTPUT
+	ldr		r1, =MODER_OUTPUT
+	strh		r1, [r5, GPIOx_MODER]
 
 	b		ready
 
-read:
+memwrite:
+	// read a byte from PA0:7
+	ldrb		r2, [r5, GPIOx_IDR]
 
-ready:	// set PA9 to indicate memory read is active
+	// write it only if the destination is in RAM
+	cmp		r1, #1
+	it		ne
+	strbne		r2, [r0]
+
+	// fall through to ready:
+
+ready:	// set PA9 to indicate request is being serviced
 	ldr		r0, =1 << 9
 	str		r0, [r5, GPIOx_BSRR]
 
-reading:// wait for MREQ and RD to go inactive
+reading:// wait for all signals to go inactive
 	ldr		r0, [r6, GPIOx_IDR]
-	ands		r1, r0, 0b1010000000000000
+	mvn		r0, r0
+	ands		r0, r0, MREQ | IORQ | RD | WR
 	bne		reading
+
+	// set PA0:7 to INPUT
+	ldr		r1, =MODER_INPUT
+	strh		r1, [r5, GPIOx_MODER]
 
 	// reset PA9
 	ldr		r0, =1 << 25
 	str		r0, [r5, GPIOx_BSRR]
 
-	b		loop
+	// go back and wait for next bus cycle
+	b		idle
 
 	.size 		main, . - main
+
+// Initialise peripherals.
+// No arguments, no return.
+
+	.type		hwinit, %function
+
+hwinit:
+	// enable GPIOA, GPIOB, GPIOC clocks
+	ldr		r2, =RCC
+	ldr		r0, [r2, RCC_AHB1ENR]
+	orr		r0, r0, RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN
+	str		r0, [r2, RCC_AHB1ENR]
+	ldr		r0, [r2, RCC_AHB1ENR]		// read register back 
+
+	// switch PA0:7, 9 to very high speed
+	ldr		r2, =GPIOA
+	ldr		r0, [r2, GPIOx_OSPEEDR]
+	ldr		r1, =0b11001111111111111111
+	orr		r0, r0, r1
+	str		r0, [r2, GPIOx_OSPEEDR]
+
+	// set PA9 mode output, push-pull, no pull-up/down
+	ldr		r0, [r2, GPIOx_MODER]
+	orr		r0, r0, GPIOx_MODER_MODE_OUTPUT << 18
+	str		r0, [r2, GPIOx_MODER]
+
+	// configure PC13 as output, push-pull, no pup/pd
+	ldr		r2, =GPIOC
+	ldr		r0, =GPIOx_MODER_MODE_OUTPUT << 26
+	str		r0, [r2, GPIOx_MODER]
+
+	bx		lr
+
+	.size		hwinit, . - hwinit
 
 // Convert the contents of a PORTB read into a memory address
 //
@@ -93,7 +150,7 @@ memaddr:
 	and		r0, r0, 0b11		// assemble final address into r0
 	orr		r0, r1, r0
 
-	// check if RAM or ROM
+	// check if RAM or ROM, and leave 0 or 1 in r1
 	movw		r1, 1
 	eors		r1, r1, r0, lsr 7
 
