@@ -14,7 +14,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "/opt/local"
-        key: ${{ runner.os }}-build-tools
+        key: ${{ runner.os }}-build-tools-9.2019-4.2.4-0.2.0
     - name: install build tools
       env:
         CACHE_HIT: ${{ steps.cache-build-tools.outputs.cache-hit }}
